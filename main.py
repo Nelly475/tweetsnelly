@@ -8,7 +8,7 @@ import json
 from pydantic import BaseModel, EmailStr, Field
 
 # Imports from FastAPI
-from fastapi import Body, FastAPI, status
+from fastapi import Body, FastAPI, Path, status
 
 app = FastAPI()
 
@@ -62,9 +62,7 @@ class Tweet(BaseModel):
 def signup(user: UserRegister = Body(...)):
     """
     Signup
-
     This Path Operation registar a user in the app
-
     Parameters:
     -   Request Body Parameter
         - user: UserRegister
@@ -108,7 +106,26 @@ def login():
             tags=["Users"]
         )
 def show_all_users():
-    pass
+    """
+    Show All Users
+    This path operations shows all users in the app
+    Parameters:
+    - None
+    Returns:
+    - Description: Returns a json list with all users in the app
+    users: [
+        {
+    - user_id: UUID
+    - email: EmailStr
+    - first_name: str
+    - last_name: str
+    - bith_date: date
+        }
+    ]
+    """    
+    with open("users.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+        return results
 
 ### Show a User By ID
 @app.get(
@@ -118,18 +135,45 @@ def show_all_users():
             summary="Show a User",
             tags=["Users"]
         )
-def show_a_user():
-    pass
+def show_a_user(
+                user_id: UUID = Path(
+                    ...,
+                    title="User UUID",
+                    description="This is the User UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8")
+                ):
+    with open("users.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+    user = [user for user in results if user["user_id"] == str(user_id)]
+    return User(user_id=user[0]["user_id"], 
+                email=user[0]["email"], 
+                first_name=user[0]["first_name"], 
+                last_name=user[0]["last_name"], 
+                birth_date=user[0]["birth_date"])
 
 ### Delete a User
 @app.delete(
             path="/users/{user_id}/delete",
-            status_code=status.HTTP_204_NO_CONTENT,
+            status_code=status.HTTP_200_OK,
             summary="Delete a User",
             tags=["Users"]
         )
-def delete_a_user():
-    pass
+def delete_a_user(user_id: UUID = Path(
+                    ...,
+                    title="User UUID",
+                    description="This is the User UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8")):
+    with open("users.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+        results_with_user_deleted = [user for user in results if user["user_id"] != str(user_id) ]
+        user_to_delete = [user for user in results if user["user_id"] == str(user_id) ]
+    if len(user_to_delete) == 0:
+        return {"mensaje": f"The User with {user_id} not found"}
+    else:    
+        with open("users.json", "w", encoding="utf-8") as f:
+            f.seek(0)
+            f.write(json.dumps(results_with_user_deleted))
+        return {"mensaje": f"The User with {user_id} was deleted"}
 
 ### Update a User
 @app.put(
@@ -139,9 +183,28 @@ def delete_a_user():
             summary="Update a User",
             tags=["Users"]
         )
-def update_a_user():
-    pass
-
+def update_a_user(user_id: UUID = Path(
+                    ...,
+                    title="User UUID",
+                    description="This is the User UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8"),
+                    user: User = Body(...)):
+    with open("users.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+    user_new = user.dict()
+    user_founded = [user for user in results if user["user_id"] == str(user_id)][0]
+    index_user = results.index(user_founded)
+    results[index_user]["email"] = str(user_new["email"])
+    results[index_user]["fisrt_name"] = str(user_new["first_name"])
+    results[index_user]["last_name"] = str(user_new["last_name"])
+    results[index_user]["birth_date"] = str(user_new["birth_date"])
+    with open("users.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(results))
+    return User(user_id=str(user_id),
+                email=str(user_new["email"]),
+                first_name=str(user_new["first_name"]),
+                last_name=str(user_new["last_name"]),
+                birth_date=str(user_new["birth_date"]))
 ## Tweets
 
 ### Show all Tweets
@@ -153,7 +216,9 @@ def update_a_user():
             tags=["Tweets"]
         )
 def home():
-    return {"Twitter API": "Working!"}
+    with open("tweets.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+        return results
 
 ### Post Tweet
 @app.post(
@@ -163,8 +228,19 @@ def home():
             summary="Post a Tweet",
             tags=["Tweets"]
         )
-def post_tweet():
-    pass
+def post_tweet(tweets: Tweet = Body(...)):
+
+    with open("tweets.json", "r+", encoding="utf-8") as f:
+        results = json.loads(f.read())
+        tweets_dict = tweets.dict()
+        tweets_dict["tweets_id"] = str(tweets_dict["tweet_id"])
+        tweets_dict["Post"] = str(tweets_dict["Post"])
+        results.append(tweets_dict)
+        f.seek(0)
+        f.write(json.dumps(results))
+
+    return tweets
+
 
 ### Show a Tweet
 @app.get(
@@ -174,8 +250,18 @@ def post_tweet():
             summary="Show a Tweet",
             tags=["Tweets"]
         )
-def show_tweet():
-    pass
+def show_tweet(tweet_id: UUID = Path(
+                    ...,
+                    title="User UUID",
+                    description="This is the User UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8")
+                ):
+    with open("tweets.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+    tweet = [tweet for tweet in results if tweet["tweet_id"] == str(tweet_id)]
+    return  Tweet(tweet_id=tweet[0]["tweet_id"], 
+                email=tweet[0]["tweet_name"], 
+                first_name=tweet[0]["Mensions"])
 
 ### Delete a Tweet
 @app.delete(
@@ -184,8 +270,22 @@ def show_tweet():
                 summary="Delete a Tweet",
                 tags=["Tweets"]
             )
-def delete_tweet():
-    pass
+def delete_tweet(tweet_id: UUID = Path( 
+                        ...,
+                    title="tweet UUID",
+                    description="This is the tweet UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8")):
+    with open("tweets.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+        results_with_tweet_deleted = [tweet for tweet in results if tweet["user_id"] != str(tweet_id) ]
+        tweet_to_delete = [tweet for tweet in results if tweet["tweet_id"] == str(tweet_id) ]
+    if len(tweet_to_delete) == 0:
+        return {"mensaje": f"The tweet with {tweet_id} not found"}
+    else:    
+        with open("users.json", "w", encoding="utf-8") as f:
+            f.seek(0)
+            f.write(json.dumps(results_with_tweet_deleted))
+        return {"mensaje": f"The tweet with {tweet_id} was deleted"}
 
 ### Update a Tweet
 @app.put(
@@ -195,5 +295,24 @@ def delete_tweet():
             summary="Update a Tweet",
             tags=["Tweets"]
         )
-def update_tweet():
-    pass
+def update_tweet(tweet_id: UUID = Path(
+             ...,
+                    title="tweet UUID",
+                    description="This is the tweet UUID",
+                    example="3fa85f64-5717-4562-b3fc-2c963f66afa8"),
+                    tweet: Tweet = Body(...)):
+    with open("tweets.json", "r", encoding="utf-8") as f:
+        results = json.loads(f.read())
+    tweet_new = tweet.dict()
+    tweet_founded = [tweet for tweet in results if tweet["Tweet_id"] == str(tweet_id)][0]
+    index_tweet = results.index(tweet_founded)
+    results[index_tweet]["tweet's"] = str(tweet_new["tweet"])
+    results[index_tweet]["tweet_name"] = str(tweet_new["tweet_name"])
+    results[index_tweet]["Mensions"] = str(tweet_new["Mensions"])
+    with open("tweets.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(results))
+
+    return Tweet (tweet_id=str(tweet_id),
+                email=str(tweet_new["tweet's"]),
+                first_name=str(tweet_new["tweet_name"]),
+                last_name=str(tweet_new["mensions"]))
